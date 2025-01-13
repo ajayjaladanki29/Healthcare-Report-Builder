@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Custom Report Builder with Filters</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+        }
+
+        .container {
+            width: 90%;
+            margin: 50px auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: space-between;
+            flex-direction: row;
+        }
+
+        .column {
+            flex: 1;
+            margin: 10px;
+        }
+
+        .header {
+            text-align: center;
+            padding-bottom: 20px;
+        }
+
+        h1 {
+            font-size: 24px;
+            color: #333;
+        }
+
+        .module, .field, .filter {
+            display: flex;
+            flex-wrap: wrap;
+        }
+
+        .module div, .field div, .filter div {
+            flex: 1;
+            margin: 5px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            cursor: pointer;
+            background-color: #fff;
+            transition: background-color 0.3s;
+        }
+
+        .module div:hover, .field div:hover, .filter div:hover {
+            background-color: #f1f1f1;
+        }
+
+        .module div.active {
+            background-color: #007bff;
+            color: white;
+        }
+
+        .selected-fields ul, .selected-filters ul {
+            list-style-type: none;
+            padding: 0;
+        }
+
+        .selected-fields ul li, .selected-filters ul li {
+            background-color: #007bff;
+            color: white;
+            padding: 10px;
+            margin: 5px;
+            border-radius: 4px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .remove {
+            cursor: pointer;
+            font-weight: bold;
+            color: #fff;
+            margin-left: 10px;
+        }
+
+        .generate-btn {
+            background-color: #28a745;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            display: block;
+            width: 100%;
+            text-align: center;
+            margin-top: 20px;
+            font-size: 16px;
+        }
+
+        .generate-btn:hover {
+            background-color: #218838;
+        }
+
+        .report-name-input {
+            width: 50%;
+            margin: 0 auto;
+            display: block;
+            padding: 10px;
+            font-size: 16px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>Custom Report Builder with Filters</h1>
+    </div>
+
+    <!-- Report Name Input -->
+    <input type="text" id="reportName" class="report-name-input" placeholder="Enter report name">
+
+    <div class="container">
+        <!-- Modules Column -->
+        <div class="column">
+            <h2>Select Module</h2>
+            <div class="module">
+                <div onclick="toggleModule(this, 'Appointments')">Appointments</div>
+                <div onclick="toggleModule(this, 'Billing')">Billing</div>
+                <div onclick="toggleModule(this, 'Patient Info')">Patient Info</div>
+                <div onclick="toggleModule(this, 'Referrals')">Referrals</div>
+            </div>
+        </div>
+
+        <!-- Fields Column -->
+        <div class="column">
+            <h2>Select Fields</h2>
+            <label for="fields">Available Fields:</label>
+            <select id="fields" onchange="addField()">
+                <option value="" selected disabled>Select a module first</option>
+            </select>
+
+            <h3>Selected Fields</h3>
+            <div class="selected-fields">
+                <ul id="selectedFields">
+                    <!-- Selected fields will appear here -->
+                </ul>
+            </div>
+        </div>
+
+        <!-- Filters Column -->
+        <div class="column">
+            <h2>Add Filters</h2>
+            <label for="filters">Available Filters:</label>
+            <select id="filters" onchange="addFilter()">
+                <option value="" selected disabled>Select a field to filter</option>
+            </select>
+
+            <h3>Selected Filters</h3>
+            <div class="selected-filters">
+                <ul id="selectedFilters">
+                    <!-- Selected filters will appear here -->
+                </ul>
+            </div>
+        </div>
+    </div>
+
+     <div class="data-type-selection">
+        <label for="dataType">Select Data Type:</label>
+        <select id="dataType">
+            <option value="counts">Counts</option>
+            <option value="metrics">Metrics</option>
+            <option value="rawData">Raw Data</option>
+        </select>
+    </div>
+
+    <!-- Generate Report Button -->
+    <button class="generate-btn" onclick="generateReport()">Generate Report</button>
+
+    <script>
+        const moduleFields = {
+            "Appointments": ["Appointment Date", "Doctor Name", "Patient Name", "Appointment Type"],
+            "Billing": ["Invoice Number", "Amount", "Billing Date", "Payment Status"],
+            "Patient Info": ["Patient Name", "Date of Birth", "Gender", "Contact Number"],
+            "Referrals": ["Referral Date", "Referral Doctor", "Patient Name", "Referral Status"]
+        };
+
+        let selectedFields = [];
+        let selectedFilters = [];
+        let currentModule = '';
+
+        function toggleModule(element, moduleName) {
+            currentModule = moduleName;
+
+            // Remove active class from all modules
+            document.querySelectorAll('.module div').forEach(el => el.classList.remove('active'));
+
+            // Add active class to clicked module
+            element.classList.add('active');
+
+            // Update fields dropdown based on the selected module
+            const fieldsDropdown = document.getElementById('fields');
+            fieldsDropdown.innerHTML = '<option value="" selected disabled>Select a field</option>';
+            moduleFields[moduleName].forEach(field => {
+                const option = document.createElement('option');
+                option.value = field;
+                option.innerText = field;
+                fieldsDropdown.appendChild(option);
+            });
+
+            // Update filters dropdown based on the selected module
+            const filtersDropdown = document.getElementById('filters');
+            filtersDropdown.innerHTML = '<option value="" selected disabled>Select a field to filter</option>';
+            moduleFields[moduleName].forEach(field => {
+                const option = document.createElement('option');
+                option.value = field;
+                option.innerText = field;
+                filtersDropdown.appendChild(option);
+            });
+        }
+
+        function addField() {
+            const selectedField = document.getElementById('fields').value;
+
+            if (selectedField && !selectedFields.includes(selectedField)) {
+                selectedFields.push(selectedField);
+
+                // Add field to selected fields list
+                const fieldList = document.getElementById('selectedFields');
+                const listItem = document.createElement('li');
+                listItem.innerText = selectedField;
+
+                const removeBtn = document.createElement('span');
+                removeBtn.innerText = 'x';
+                removeBtn.classList.add('remove');
+                removeBtn.onclick = () => removeField(selectedField);
+                listItem.appendChild(removeBtn);
+
+                fieldList.appendChild(listItem);
+            }
+        }
+
+        function removeField(field) {
+            selectedFields = selectedFields.filter(f => f !== field);
+            const fieldList = document.getElementById('selectedFields');
+            fieldList.innerHTML = '';
+            selectedFields.forEach(f => {
+                const listItem = document.createElement('li');
+                listItem.innerText = f;
+
+                const removeBtn = document.createElement('span');
+                removeBtn.innerText = 'x';
+                removeBtn.classList.add('remove');
+                removeBtn.onclick = () => removeField(f);
+                listItem.appendChild(removeBtn);
+
+                fieldList.appendChild(listItem);
+            });
+        }
+
+        function addFilter() {
+            const selectedFilter = document.getElementById('filters').value;
+
+            if (selectedFilter && !selectedFilters.includes(selectedFilter)) {
+                selectedFilters.push(selectedFilter);
+
+                // Add filter to selected filters list
+                const filterList = document.getElementById('selectedFilters');
+                const listItem = document.createElement('li');
+                listItem.innerText = selectedFilter;
+
+                const removeBtn = document.createElement('span');
+                removeBtn.innerText = 'x';
+                removeBtn.classList.add('remove');
+                removeBtn.onclick = () => removeFilter(selectedFilter);
+                listItem.appendChild(removeBtn);
+
+                filterList.appendChild(listItem);
+            }
+        }
+
+        function removeFilter(filter) {
+            selectedFilters = selectedFilters.filter(f => f !== filter);
+            const filterList = document.getElementById('selectedFilters');
+            filterList.innerHTML = '';
+            selectedFilters.forEach(f => {
+                const listItem = document.createElement('li');
+                listItem.innerText = f;
+
+                const removeBtn = document.createElement('span');
+                removeBtn.innerText = 'x';
+                removeBtn.classList.add('remove');
+                removeBtn.onclick = () => removeFilter(f);
+                listItem.appendChild(removeBtn);
+
+                filterList.appendChild(listItem);
+            });
+        }
+
+        function generateReport() {
+            const reportName = document.getElementById('reportName').value;
+            if (!reportName) {
+                alert('Please enter a report name.');
+                return;
+            }
+
+            const reportData = {
+                name: reportName,
+                module: currentModule,
+                fields: selectedFields,
+                filters: selectedFilters
+            };
+
+            console.log('Generating report with data:', reportData);
+            // Here, you can send the reportData to your server or process it as needed
+        }
+    </script>
+
+</body>
+</html>
